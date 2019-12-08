@@ -1,19 +1,64 @@
 #include "ros_img_processor_node.h"
+#include "opencv2/opencv.hpp"
+#include "opencv2/core.hpp"
+#include "opencv2/imgproc.hpp"
+
+//constants
+static const int DEFAULT_GAUSSIAN_BLUR_SIZE = 7;
+static const double DEFAULT_GAUSSIAN_BLUR_SIGMA = 2;
+static const double DEFAULT_CANNY_EDGE_TH = 150;
+static const double DEFAULT_HOUGH_ACCUM_RESOLUTION = 2;
+static const double DEFAULT_MIN_CIRCLE_DIST = 40;
+static const double DEFAULT_HOUGH_ACCUM_TH = 70;
+static const int DEFAULT_MIN_RADIUS = 20;
+static const int DEFAULT_MAX_RADIUS = 100;
+
 
 RosImgProcessorNode::RosImgProcessorNode() :
     nh_(ros::this_node::getName()),
     img_tp_(nh_)
 {
-	//loop rate [hz], Could be set from a yaml file
-	rate_=10;
+    //loop rate [hz], Could be set from a yaml file
+    rate_=10;
 
-	//sets publishers
-	image_pub_ = img_tp_.advertise("image_out", 100);
-	marker_publisher_ = nh_.advertise<visualization_msgs::Marker>( "arrow_marker", 1 );
+    //sets publishers
+    image_pub_ = img_tp_.advertise("image_out", 100);
+    marker_publisher_ = nh_.advertise<visualization_msgs::Marker>( "arrow_marker", 1 );
 
-	//sets subscribers
-	image_subs_ = img_tp_.subscribe("image_in", 1, &RosImgProcessorNode::imageCallback, this);
-	camera_info_subs_ = nh_.subscribe("camera_info_in", 100, &RosImgProcessorNode::cameraInfoCallback, this);
+    //sets subscribers
+    image_subs_ = img_tp_.subscribe("image_in", 1, &RosImgProcessorNode::imageCallback, this);
+    camera_info_subs_ = nh_.subscribe("camera_info_in", 100, &RosImgProcessorNode::cameraInfoCallback, this);
+
+    // load detection params
+    ros::NodeHandle private_nh("~");
+
+    private_nh.param("gaussian_blur_size", params_.gaussian_blur_size, DEFAULT_GAUSSIAN_BLUR_SIZE);
+    private_nh.param<double>("gaussian_blur_sigma", params_.gaussian_blur_sigma, DEFAULT_GAUSSIAN_BLUR_SIGMA);
+
+    private_nh.param<double>("hough_accum_resolution", params_.hough_accum_resolution, DEFAULT_HOUGH_ACCUM_RESOLUTION);
+    private_nh.param<double>("min_circle_dist", params_.min_circle_dist, DEFAULT_MIN_CIRCLE_DIST);
+    private_nh.param<double>("canny_edge_th", params_.canny_edge_th, DEFAULT_CANNY_EDGE_TH);
+    private_nh.param<double>("hough_accum_th", params_.hough_accum_th, DEFAULT_HOUGH_ACCUM_TH);
+    private_nh.param("min_radius", params_.min_radius, DEFAULT_MIN_RADIUS);
+    private_nh.param("max_radius", params_.max_radius, DEFAULT_MAX_RADIUS);
+
+    first_reconfig_ = true;
+    dynamic_reconfigure::Server<ros_img_processor::CircleDetectorConfig>::CallbackType f;
+    f = boost::bind(&RosImgProcessorNode::reconfigure_callback, this, _1, _2);
+    config_server_.setCallback(f);
+
+}
+
+void RosImgProcessorNode::reconfigure_callback(ros_img_processor::CircleDetectorConfig& config, uint32_t level)
+{
+    if (first_reconfig_)
+    {
+        config = params_;
+        first_reconfig_ = false;
+        return;  // Ignore the first call to reconfigure which happens at startup
+    }
+
+    params_ = config;
 }
 
 RosImgProcessorNode::~RosImgProcessorNode()
@@ -23,27 +68,44 @@ RosImgProcessorNode::~RosImgProcessorNode()
 
 void RosImgProcessorNode::process()
 {
-    cv::Rect_<int> box;
-
     //check if new image is there
     if ( cv_img_ptr_in_ != nullptr )
     {
         // copy the input image to the out one
         cv_img_out_.image = cv_img_ptr_in_->image;
 
-		// find the ball
-		//TODO
+        // find the ball
+        cv::Mat gray_image;
+        std::vector<cv::Vec3f> circles;
 
-		// find the direction vector
-		//TODO
-		direction_ << 1,1,2.5;  // just to draw something with the arrow marker
+        // If input image is RGB, convert it to gray
+        cv::cvtColor(cv_img_out_.image, gray_image, CV_BGR2GRAY);
 
-        // draw a bounding box around the ball
-        box.x = (cv_img_ptr_in_->image.cols/2)-10;
-        box.y = (cv_img_ptr_in_->image.rows/2)-10;
-        box.width = 20;
-        box.height = 20;
-        cv::rectangle(cv_img_out_.image, box, cv::Scalar(0,255,255), 3);
+        //Reduce the noise so we avoid false circle detection
+        cv::GaussianBlur( gray_image, gray_image, cv::Size(params_.gaussian_blur_size, params_.gaussian_blur_size), params_.gaussian_blur_sigma );
+
+        //Apply the Hough Transform to find the circles
+        cv::HoughCircles( gray_image, circles, CV_HOUGH_GRADIENT, params_.hough_accum_resolution, params_.min_circle_dist, params_.canny_edge_th, params_.hough_accum_th, params_.min_radius, params_.max_radius );
+
+        //draw circles on the image, if more than 1, display only the first one
+        if ( circles.size() )
+        {
+            cv::Point center = cv::Point(cvRound(circles[0][0]), cvRound(circles[0][1]));
+            int radius = cvRound(circles[0][2]);
+
+            std::cout << "Ball found at (" << center.x << ", " << center.y << ") radius = " << radius << std::endl;
+
+            cv::circle(cv_img_out_.image, center, 5, cv::Scalar(0,0,255), -1, 8, 0 );// circle center in green
+            cv::circle(cv_img_out_.image, center, radius, cv::Scalar(0,0,255), 3, 8, 0 );// circle perimeter in red
+
+            // Find the direction of the circle
+            Eigen::Vector3d point;
+            point[0] = center.x;
+            point[1] = center.y;
+            point[2] = 1;
+
+            direction_ = matrixK_.inverse() * point;
+        }
     }
 
     //reset input image

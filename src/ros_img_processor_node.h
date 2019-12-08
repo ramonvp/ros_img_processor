@@ -14,6 +14,8 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <visualization_msgs/Marker.h>
+#include <dynamic_reconfigure/server.h>
+#include "ros_img_processor/CircleDetectorConfig.h"
 
 /** \brief Simple Image Processor
  *
@@ -23,6 +25,7 @@
 class RosImgProcessorNode
 {
     protected:
+
         //ros node handle
         ros::NodeHandle nh_;
 
@@ -35,15 +38,15 @@ class RosImgProcessorNode
 
         //publishers
         image_transport::Publisher image_pub_;
-		ros::Publisher marker_publisher_;
+        ros::Publisher marker_publisher_;
 
         //pointer to received (in) and published (out) images
         cv_bridge::CvImagePtr cv_img_ptr_in_;
         cv_bridge::CvImage cv_img_out_;
 
-		//Camera matrix
-		Eigen::Matrix3d matrixK_;
-		Eigen::Vector3d direction_;
+        //Camera matrix
+        Eigen::Matrix3d matrixK_;
+        Eigen::Vector3d direction_;
 
         //image encoding label
         std::string img_encoding_;
@@ -51,11 +54,17 @@ class RosImgProcessorNode
         //wished process rate, [hz]
         double rate_;
 
+        // parameters used for detecting circles
+        ros_img_processor::CircleDetectorConfig params_;
+
+        dynamic_reconfigure::Server<ros_img_processor::CircleDetectorConfig> config_server_;
+        bool first_reconfig_;
+
     protected:
         // callbacks
         void imageCallback(const sensor_msgs::ImageConstPtr& _msg);
         void cameraInfoCallback(const sensor_msgs::CameraInfo & _msg);
-
+        void reconfigure_callback(ros_img_processor::CircleDetectorConfig& config, uint32_t level);
     public:
         // Constructor
         RosImgProcessorNode();
@@ -69,7 +78,7 @@ class RosImgProcessorNode
         // Publish output image
         void publishImage();
 
-		// Publish direction marker
+        // Publish direction marker
         void publishMarker();
 
  		// Returns rate_

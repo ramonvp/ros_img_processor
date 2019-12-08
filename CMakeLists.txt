@@ -9,7 +9,8 @@ find_package( catkin REQUIRED COMPONENTS
       roscpp
       rospy
       image_transport
-      cv_bridge)
+      cv_bridge
+      dynamic_reconfigure)
 
 ## System dependencies are found with CMake's conventions
 find_package(OpenCV REQUIRED)
@@ -19,20 +20,26 @@ SET(SRCS
       src/ros_img_processor_node.cpp
       src/ros_img_processor_main.cpp)
 
+generate_dynamic_reconfigure_options(
+    cfg/CircleDetector.cfg
+)
+
 ## The catkin_package macro generates cmake config files for your package
 catkin_package(
       CATKIN_DEPENDS 
             roscpp 
             rospy 
             image_transport 
-            cv_bridge)
+            cv_bridge
+            dynamic_reconfigure)
 
 ## Specify additional locations of header files
 include_directories(${OpenCV_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
 ## Declare a cpp executable for pipol_tracker_node
 add_executable(ros_img_processor ${SRCS})
-#add_dependencies(pipol_tracker_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
+#add_dependencies(ros_img_processor ${${PROJECT_NAME}_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencfg)
+#add_dependencies(ros_img_processor ${PROJECT_NAME}_gencfg)
 target_link_libraries(ros_img_processor ${OpenCV_LIBS} ${catkin_LIBRARIES})
 
 #install binaries

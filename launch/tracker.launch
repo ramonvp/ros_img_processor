@@ -1,0 +1,20 @@
+<!-- Launches tracker-->
+<launch>
+    <!-- User arguments -->
+    <arg name="video_device"  default="/dev/video2" />
+    <arg name="show_image_raw"  default="false" />
+    <arg name="show_rviz"  default="true" />
+    <arg name="hw_camera"  default="svpro" doc="svpro or laptop" />
+
+    <!-- Tracker implementing a Kalman Filter -->
+    <node name="kalman_filter" pkg="ros_img_processor" type="tracker" output="screen">
+        <remap from="/kalman_filter/image_in" to="/ros_img_processor/image_out"/>
+        <remap from="/kalman_filter/detector_in" to="/ros_img_processor/output"/>
+    </node>
+
+    <node name="image_filtered_out" pkg="image_view" type="image_view" respawn="false" output="screen">
+        <remap from="image" to="/kalman_filter/image_out"/>
+        <param name="autosize" value="false" />
+    </node>
+
+</launch>

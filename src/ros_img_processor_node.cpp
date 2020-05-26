@@ -2,6 +2,7 @@
 #include "opencv2/opencv.hpp"
 #include "opencv2/core.hpp"
 #include "opencv2/imgproc.hpp"
+#include "ros_img_processor/CircleDetectionStamped.h"
 
 //constants
 static const int DEFAULT_GAUSSIAN_BLUR_SIZE = 7;
@@ -24,6 +25,7 @@ RosImgProcessorNode::RosImgProcessorNode() :
     //sets publishers
     image_pub_ = img_tp_.advertise("image_out", 100);
     marker_publisher_ = nh_.advertise<visualization_msgs::Marker>( "arrow_marker", 1 );
+    output_publisher_ = nh_.advertise<ros_img_processor::CircleDetectionStamped>( "output", 10 );
 
     //sets subscribers
     image_subs_ = img_tp_.subscribe("image_in", 1, &RosImgProcessorNode::imageCallback, this);
@@ -105,6 +107,15 @@ void RosImgProcessorNode::process()
             point[2] = 1;
 
             direction_ = matrixK_.inverse() * point;
+
+            // publish the detected result
+            ros_img_processor::CircleDetectionStamped pos_msg;
+            pos_msg.header.stamp = ros::Time::now();
+            pos_msg.header.frame_id = "camera";
+            pos_msg.circle.x = point[0];
+            pos_msg.circle.y = point[1];
+            pos_msg.circle.radius = radius;
+            output_publisher_.publish(pos_msg);
         }
     }
 

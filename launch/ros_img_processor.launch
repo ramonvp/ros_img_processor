@@ -2,8 +2,8 @@
 
 <launch>
 	<!-- User arguments -->
-	<arg name="video_device"  default="/dev/video0" />
-	<arg name="show_image"  default="true" />
+        <arg name="video_device"  default="/dev/video2" />
+        <arg name="show_image_raw"  default="false" />
 	<arg name="show_rviz"  default="true" />
         <arg name="hw_camera"  default="svpro" doc="svpro or laptop" />
 
@@ -55,7 +55,7 @@
         <node name="dynamic_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" />
 
 	<!-- display in/out image -->
-	<group if="$(arg show_image)">
+        <group if="$(arg show_image_raw)">
 		<node
 			name="image_view_raw"
 			pkg="image_view"
@@ -65,16 +65,18 @@
 			<remap from="image" to="/usb_cam/image_raw"/>
 			<param name="autosize" value="false" />
 		</node>
-		<node
-			name="image_view_out"
-			pkg="image_view"
-			type="image_view"
-			respawn="false"
-			output="screen">
-			<remap from="image" to="/ros_img_processor/image_out"/>
-			<param name="autosize" value="false" />
-		</node>
+
 	</group>
+
+        <node
+                name="image_view_out"
+                pkg="image_view"
+                type="image_view"
+                respawn="false"
+                output="screen">
+                <remap from="image" to="/ros_img_processor/image_out"/>
+                <param name="autosize" value="false" />
+        </node>
 
 	<!-- Run rviz node -->
 	<group if="$(arg show_rviz)">

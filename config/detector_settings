@@ -1,0 +1,31 @@
+!!python/object/new:dynamic_reconfigure.encoding.Config
+dictitems:
+  canny_edge_th: 70.0
+  gaussian_blur_sigma: 2.0
+  gaussian_blur_size: 7
+  groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+    dictitems:
+      canny_edge_th: 70.0
+      gaussian_blur_sigma: 2.0
+      gaussian_blur_size: 7
+      groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+        state: []
+      hough_accum_resolution: 2.0
+      hough_accum_th: 85.0
+      id: 0
+      max_radius: 646
+      min_circle_dist: 40.0
+      min_radius: 10
+      name: Default
+      parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+        state: []
+      parent: 0
+      state: true
+      type: ''
+    state: []
+  hough_accum_resolution: 2.0
+  hough_accum_th: 85.0
+  max_radius: 646
+  min_circle_dist: 40.0
+  min_radius: 10
+state: []
